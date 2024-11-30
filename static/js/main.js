@@ -16,6 +16,7 @@
     resultSection.style.display = 'none';
 
     try {
+        // Отправляем запрос на генерацию
         const response = await fetch('/generate', {
             method: 'POST',
             body: formData
@@ -31,19 +32,33 @@
             throw new Error(data.error);
         }
 
-        document.getElementById('story-image').src = data.image_url;
-        document.getElementById('story-text').textContent = data.story;
+        // Проверяем статус каждые 2 секунды
+        const checkStatus = async () => {
+            const statusResponse = await fetch(`/status/${data.request_id}`);
+            const statusData = await statusResponse.json();
+            
+            if (statusData.status === 'complete') {
+                document.getElementById('story-image').src = statusData.image_url;
+                document.getElementById('story-text').textContent = statusData.story;
+                document.getElementById('audio-player').src = statusData.audio_path;
+                resultSection.style.display = 'block';
+                loading.style.display = 'none';
+                generateBtn.disabled = false;
+                return;
+            } else if (statusData.status === 'error') {
+                throw new Error(statusData.error);
+            }
+            
+            // Продолжаем проверять
+            setTimeout(checkStatus, 2000);
+        };
         
-        const audioPlayer = document.getElementById('audio-player');
-        audioPlayer.src = data.audio_path;
-        audioPlayer.load(); // Перезагружаем аудио после изменения источника
+        checkStatus();
         
-        resultSection.style.display = 'block';
     } catch (error) {
         console.error('Error:', error);
         alert(`Произошла ошибка: ${error.message}`);
-    } finally {
-        generateBtn.disabled = false;
         loading.style.display = 'none';
+        generateBtn.disabled = false;
     }
 });
