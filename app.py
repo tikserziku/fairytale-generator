@@ -15,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Простая инициализация OpenAI клиента
 client = openai.Client(
-    api_key=os.getenv('OPENAI_API_KEY'),
-    http_client=httpx.Client(timeout=60.0)  # Используем явно созданный HTTP клиент
+    api_key=os.getenv('OPENAI_API_KEY')
 )
 
 # Хранилище результатов
