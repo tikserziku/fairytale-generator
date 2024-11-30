@@ -13,12 +13,8 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Инициализируем клиент OpenAI без проксирования
-openai_client = openai.Client(
-    api_key=os.getenv('OPENAI_API_KEY'),
-    base_url="https://api.openai.com/v1",
-    timeout=60.0
-)
+# Простая инициализация OpenAI клиента
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # Хранилище результатов
 results = {}
@@ -56,19 +52,17 @@ def generate_content(request_id, topic, age):
         logger.info(f"Generating story for topic: {topic}, age: {age}")
         
         # Генерация сказки через OpenAI
-        completion = openai_client.chat.completions.create(
+        completion = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{
                 "role": "system",
                 "content": f"Напиши добрую сказку для детей возраста {age} лет на тему {topic}."
-            }],
-            temperature=0.7,
-            max_tokens=1000
+            }]
         )
         story = completion.choices[0].message.content
 
         # Генерация изображения
-        image_response = openai_client.images.generate(
+        image_response = openai.images.generate(
             model="dall-e-3",
             prompt=f"Детская иллюстрация к сказке про {topic}, мультяшный стиль",
             n=1,
@@ -81,7 +75,7 @@ def generate_content(request_id, topic, age):
 
         # Генерация аудио
         speech_file = os.path.join('static', f'audio_{request_id}.mp3')
-        response = openai_client.audio.speech.create(
+        response = openai.audio.speech.create(
             model="tts-1",
             voice="alloy",
             input=story
