@@ -11,12 +11,20 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Исправленная инициализация OpenAI клиента
+# Инициализация OpenAI клиента без аргумента proxies
+client = None
 try:
-    client = openai.Client(api_key=os.getenv('OPENAI_API_KEY'))
+    api_key = os.getenv('OPENAI_API_KEY')
+    if not api_key:
+        logger.error("OPENAI_API_KEY not found in environment variables")
+    else:
+        client = openai.OpenAI(
+            api_key=api_key,
+            base_url="https://api.openai.com/v1"
+        )
+        logger.info("OpenAI client initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize OpenAI client: {e}")
-    client = None
 
 @app.route('/')
 def home():
@@ -27,9 +35,6 @@ def generate():
     try:
         if not client:
             raise Exception("OpenAI client not initialized")
-        
-        if not os.getenv('OPENAI_API_KEY'):
-            raise Exception("OPENAI_API_KEY not set")
 
         topic = request.form.get('topic')
         age = request.form.get('age')
@@ -37,9 +42,11 @@ def generate():
         if not topic or not age:
             raise ValueError("Topic and age are required")
 
+        logger.info(f"Generating story for topic: {topic}, age: {age}")
+
         # Генерация сказки
         completion = client.chat.completions.create(
-            model="gpt-3.5-turbo",  # Используем более доступную модель
+            model="gpt-3.5-turbo",
             messages=[
                 {
                     "role": "system",
@@ -57,6 +64,9 @@ def generate():
         )
         image_url = image_response.data[0].url
 
+        # Создаем директорию static, если её нет
+        os.makedirs('static', exist_ok=True)
+
         # Генерация аудио
         speech_file = os.path.join('static', 'temp_audio.mp3')
         response = client.audio.speech.create(
@@ -64,13 +74,12 @@ def generate():
             voice="alloy",
             input=story
         )
-
-        # Создаем директорию static, если её нет
-        os.makedirs('static', exist_ok=True)
         
         # Сохраняем аудио
         response.stream_to_file(speech_file)
 
+        logger.info("Successfully generated story, image and audio")
+        
         return jsonify({
             'story': story,
             'image_url': image_url,
@@ -78,7 +87,7 @@ def generate():
         })
         
     except Exception as e:
-        logger.error(f"Error in generate: {str(e)}")
+        logger.error(f"Error in generate: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
