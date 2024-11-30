@@ -1,6 +1,5 @@
 ﻿from flask import Flask, render_template, request, jsonify
 import openai
-import groq
 import os
 from dotenv import load_dotenv
 import logging
@@ -14,9 +13,12 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Инициализируем клиентов
-openai_client = openai.Client(api_key=os.getenv('OPENAI_API_KEY'))
-groq_client = groq.Groq(api_key=os.getenv('GROQ_API_KEY'))
+# Инициализируем клиент OpenAI без проксирования
+openai_client = openai.Client(
+    api_key=os.getenv('OPENAI_API_KEY'),
+    base_url="https://api.openai.com/v1",
+    timeout=60.0
+)
 
 # Хранилище результатов
 results = {}
@@ -53,20 +55,21 @@ def generate_content(request_id, topic, age):
     try:
         logger.info(f"Generating story for topic: {topic}, age: {age}")
         
-        # Генерация сказки через Groq
-        story_completion = groq_client.chat.completions.create(
+        # Генерация сказки через OpenAI
+        completion = openai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
             messages=[{
                 "role": "system",
                 "content": f"Напиши добрую сказку для детей возраста {age} лет на тему {topic}."
             }],
-            model="mixtral-8x7b-32768",
             temperature=0.7,
-            max_tokens=2048
+            max_tokens=1000
         )
-        story = story_completion.choices[0].message.content
+        story = completion.choices[0].message.content
 
-        # Генерация изображения через OpenAI (так как Groq не поддерживает генерацию изображений)
+        # Генерация изображения
         image_response = openai_client.images.generate(
+            model="dall-e-3",
             prompt=f"Детская иллюстрация к сказке про {topic}, мультяшный стиль",
             n=1,
             size="1024x1024"
@@ -76,7 +79,7 @@ def generate_content(request_id, topic, age):
         # Создаем директорию static, если её нет
         os.makedirs('static', exist_ok=True)
 
-        # Генерация аудио через OpenAI
+        # Генерация аудио
         speech_file = os.path.join('static', f'audio_{request_id}.mp3')
         response = openai_client.audio.speech.create(
             model="tts-1",
@@ -84,10 +87,8 @@ def generate_content(request_id, topic, age):
             input=story
         )
         
-        # Сохраняем аудио
         response.stream_to_file(speech_file)
         
-        # Сохраняем результат
         results[request_id] = {
             'complete': True,
             'story': story,
@@ -95,10 +96,10 @@ def generate_content(request_id, topic, age):
             'audio_path': f'/static/audio_{request_id}.mp3'
         }
         
-        logger.info("Successfully generated story, image and audio")
+        logger.info("Successfully generated content")
         
     except Exception as e:
-        logger.error(f"Error in generate_content: {str(e)}")
+        logger.error(f"Error in generate_content: {str(e)}", exc_info=True)
         results[request_id] = {'error': str(e)}
 
 @app.route('/status/<request_id>', methods=['GET'])
