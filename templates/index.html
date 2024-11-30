@@ -1,0 +1,49 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор Сказок</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Генератор Сказок</h1>
+        
+        <form id="story-form">
+            <div class="form-group">
+                <label for="topic">О чем сказка?</label>
+                <input type="text" id="topic" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="age">Возраст детей:</label>
+                <select id="age" required>
+                    <option value="3-5">3-5 лет</option>
+                    <option value="6-8">6-8 лет</option>
+                    <option value="9-12">9-12 лет</option>
+                </select>
+            </div>
+            
+            <button type="submit" id="generate-btn">Создать сказку</button>
+        </form>
+
+        <div id="loading" style="display: none;">
+            Генерируем сказку...
+        </div>
+
+        <div id="result-section" style="display: none;">
+            <img id="story-image" class="story-image" alt="Иллюстрация к сказке">
+            
+            <audio id="audio-player" controls class="audio-player">
+                <source src="" type="audio/mpeg">
+                Ваш браузер не поддерживает аудио элемент.
+            </audio>
+            
+            <div id="story-text"></div>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
